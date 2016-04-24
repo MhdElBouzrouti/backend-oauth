@@ -4,26 +4,36 @@
  * @description :: Server-side logic for managing users
  * @help        :: See http://sailsjs.org/#!/documentation/concepts/Controllers
  */
-
+var request = require('request');
 module.exports = {
   login: function (req, res) {
     var accessTokenUrl = 'https://api.orange.com/openidconnect/fr/v1/token';
     var userInfoUrl = 'https://api.orange.com/openidconnect/v1/userinfo';
+    // Params For Access Token
     var params = {
-      code: req.body.code,
-      client_id: req.body.clientId,
-      client_secret: config.GOOGLE_SECRET,
-      redirect_uri: req.body.redirectUri,
+      code: req.allParams().code,
+      client_id: config.CLIENT_ID,
+      client_secret: config.ORANGE_SECRET,
+      redirect_uri: config.REDIRECT_URI,
       grant_type: 'authorization_code'
     };
+    sails.log.debug(params);
+    var headers={'Authorization':config.AUTHORIZATION_HEADER};
+    var body='grant_type=authorization_code&redirect_uri='+params.redirect_uri+'&code='+params.code;
 
     // Step 1. Exchange authorization code for access token.
-    request.post(accessTokenUrl, { json: true, form: params }, function(err, response, token) {
-      var accessToken = token.access_token;
+    request({url:accessTokenUrl,method:'post',headers:headers,form:body}, function(err, response, token) {
+      if(err)
+        sails.log.debug(err);
+      sails.log.debug(response);
+      var accessToken = JSON.parse(response.body).access_token;
+      sails.log.debug(response.body);
+      sails.log.debug(accessToken);
       var headers = { Authorization: 'Bearer ' + accessToken };
 
       // Step 2. Retrieve profile information about the current user.
       request.get({ url: userInfoUrl, headers: headers, json: true }, function(err, response, profile) {
+        sails.log.debug(response);
         if (profile.error) {
           return res.status(500).send({message: profile.error.message});
         }
